@@ -127,11 +127,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BookManager.cpp" />
     <ClCompile Include="C:\Users\AmirSobhanParsa\Downloads\sqlite-amalgamation-3510100\sqlite3.c" />
+    <ClCompile Include="Database.cpp" />
     <ClCompile Include="Library-Management-System.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Book.h" />
+    <ClInclude Include="BookManager.h" />
     <ClInclude Include="C:\Users\AmirSobhanParsa\Downloads\sqlite-amalgamation-3510100\sqlite3.h" />
+    <ClInclude Include="Database.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

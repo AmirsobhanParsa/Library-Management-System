@@ -1,8 +1,8 @@
 #pragma once
-
 #include <string>
 #include "book.h"
 #include "database.h"
+#include <vector>
 
 class BookManager {
 private:
@@ -14,5 +14,6 @@ public:
     bool removeBook(int bookId);
     bool borrowBook(int bookId, const std::string& borrower);
     bool returnBook(int bookId);
-    void listAllBooks();
+    vector<Book> getAllBooks();
+    void printBooks(const vector<Book>& books);
 };

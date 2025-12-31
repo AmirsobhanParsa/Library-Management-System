@@ -21,9 +21,24 @@
     <ClCompile Include="C:\Users\AmirSobhanParsa\Downloads\sqlite-amalgamation-3510100\sqlite3.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Database.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BookManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="C:\Users\AmirSobhanParsa\Downloads\sqlite-amalgamation-3510100\sqlite3.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Book.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Database.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BookManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

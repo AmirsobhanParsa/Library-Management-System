@@ -1,5 +1,4 @@
 #pragma once
-
 #include <string>
 #include "sqlite3.h"
 
@@ -13,5 +12,6 @@ public:
     bool open();
     void close();
     bool execute(const std::string& sql);
+    sqlite3* getDbHandle();
 };
 
