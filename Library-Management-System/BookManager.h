@@ -3,6 +3,7 @@
 #include "book.h"
 #include "database.h"
 #include <vector>
+#include <algorithm>
 
 class BookManager {
 private:
@@ -16,4 +17,6 @@ public:
     bool returnBook(int bookId);
     vector<Book> getAllBooks();
     void printBooks(const vector<Book>& books);
+    void sortBooksByYear(vector<Book>& books);
+    void sortBooksById(vector<Book>& books);
 };

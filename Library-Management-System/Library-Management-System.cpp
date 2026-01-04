@@ -13,5 +13,13 @@ int main() {
 
     manager.printBooks(allBooks);
 
+    cout << "\nSorting by Year...\n";
+    manager.sortBooksByYear(allBooks);
+    manager.printBooks(allBooks);
+
+    cout << "\nSorting by Id...\n";
+    manager.sortBooksById(allBooks);
+    manager.printBooks(allBooks);
+
     return 0;
 }

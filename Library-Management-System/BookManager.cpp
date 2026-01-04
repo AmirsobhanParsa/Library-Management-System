@@ -76,3 +76,15 @@ void BookManager::printBooks(const vector<Book>& books) {
     }
     cout << "-------------------------------------------------\n";
 }
+
+void BookManager::sortBooksByYear(vector<Book>& books) {
+    sort(books.begin(), books.end(), [](const Book& a, const Book& b) {
+        return a.Year < b.Year;
+        });
+}
+
+void BookManager::sortBooksById(vector<Book>& books) {
+    sort(books.begin(), books.end(), [](const Book& a, const Book& b) {
+        return a.Id < b.Id;
+        });
+}
