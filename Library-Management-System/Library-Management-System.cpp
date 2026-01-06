@@ -22,15 +22,16 @@ int main() {
         // Display Main Menu
         cout << "\n========= LIBRARY MANAGEMENT SYSTEM =========" << endl;
         cout << "1. Add New Book (Auto ID)" << endl;
-        cout << "2. List All Books (from Database)" << endl;
+        cout << "2. List All Books & Sort" << endl;
         cout << "3. Search Book by ID" << endl;
         cout << "4. Borrow Book (Queue System)" << endl;
-        cout << "5. Return Book (Auto-Transfer)" << endl;
-        cout << "6. Undo Last Action (Max 5)" << endl;
+        cout << "5. Return Book" << endl;
+        cout << "6. Undo Last Action" << endl;
         cout << "7. Show Last Operation Status" << endl;
+        cout << "8. Remove Book" << endl;
         cout << "0. Exit" << endl;
-        cout << "=============================================" << endl;
-        cout << "Enter your choice: ";
+        cout << "---------------------------------------------" << endl;
+        cout << "Enter choice: ";
 
         // Input Validation: Check if the user entered a valid integer
         if (!(cin >> choice)) {
@@ -111,6 +112,13 @@ int main() {
         }
         case 7: { // Show Status
             manager.showLastOperation();
+            break;
+        }
+        case 8: {
+            int id;
+            cout << "Enter ID to remove: "; cin >> id;
+            if (manager.removeBook(id)) cout << "Book removed." << endl;
+            else cout << "Failed to remove." << endl;
             break;
         }
         default:
