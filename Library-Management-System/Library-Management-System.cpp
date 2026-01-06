@@ -3,23 +3,21 @@
 
 int main() {
     BookManager manager;
-
-     //manager.addBook({101, "C++ Programming", "Stroustrup", 2013, false, ""});
-     //manager.addBook({102, "Clean Code", "Robert Martin", 2008, false, ""});
-     //manager.addBook({103, "The Pragmatic", "Andrew Hunt", 1999, false, ""});
-
-    cout << "Loading books from database...\n";
     vector<Book> allBooks = manager.getAllBooks();
 
-    manager.printBooks(allBooks);
+    int idToSearch;
+    cout << "Enter Book ID to search: ";
+    cin >> idToSearch;
 
-    cout << "\nSorting by Year...\n";
-    manager.sortBooksByYear(allBooks);
-    manager.printBooks(allBooks);
+    vector<Book> result = manager.searchBooksById(allBooks, idToSearch);
 
-    cout << "\nSorting by Id...\n";
-    manager.sortBooksById(allBooks);
-    manager.printBooks(allBooks);
+    if (result.empty()) {
+        cout << "No book found with ID: " << idToSearch << endl;
+    }
+    else {
+        cout << "Book Found:" << endl;
+        manager.printBooks(result);
+    }
 
     return 0;
 }

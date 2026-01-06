@@ -19,4 +19,5 @@ public:
     void printBooks(const vector<Book>& books);
     void sortBooksByYear(vector<Book>& books);
     void sortBooksById(vector<Book>& books);
+    vector<Book> searchBooksById(const vector<Book>& books, int searchId);
 };

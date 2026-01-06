@@ -88,3 +88,16 @@ void BookManager::sortBooksById(vector<Book>& books) {
         return a.Id < b.Id;
         });
 }
+
+vector<Book> BookManager::searchBooksById(const vector<Book>& books, int searchId) {
+    vector<Book> results;
+
+    for (const auto& item : books) {
+        if (item.Id == searchId) {
+            results.push_back(item);
+            break;
+        }
+    }
+
+    return results;
+}
