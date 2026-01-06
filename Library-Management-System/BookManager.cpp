@@ -9,7 +9,7 @@
 using namespace std;
 
 // Helper function to truncate strings for table display
-// (فقط برای نمایش بهتر جدول اضافه شده و تاثیری در دیتابیس ندارد)
+// This ensures that long titles/authors do not break the table alignment.
 string truncate(string str, size_t width) {
     if (str.length() > width) {
         return str.substr(0, width - 3) + "...";
@@ -17,14 +17,19 @@ string truncate(string str, size_t width) {
     return str;
 }
 
+// Constructor: Initializes the BookManager and attempts to open the database.
 BookManager::BookManager() {
     if (!db.open()) {
         cerr << "[!] Critical Error: Database connection failed.\n";
     }
 }
 
+// Adds a new book to the database and records the action in the history stack.
 bool BookManager::addBook(const Book& BookItem) {
+    // Generate a unique 5-digit ID for the book
     int finalId = generateUniqueId();
+
+    // Construct SQL query to insert the book
     string sql =
         "INSERT INTO books (Id, Title, Author, Year, isBorrowed, Borrower) VALUES (" +
         to_string(finalId) + ", '" +
@@ -32,10 +37,12 @@ bool BookManager::addBook(const Book& BookItem) {
         BookItem.Author + "', " +
         to_string(BookItem.Year) + ", 0, NULL);";
 
+    // Execute the query
     if (db.execute(sql)) {
         cout << "\n[+] Book Added Successfully.\n";
         cout << "    ID: " << finalId << " | Title: " << BookItem.Title << endl;
 
+        // Push action to history stack for Undo functionality
         Action act;
         act.type = ADD;
         act.targetId = finalId;
@@ -46,14 +53,17 @@ bool BookManager::addBook(const Book& BookItem) {
     return false;
 }
 
+// Removes a book from the database by ID.
 bool BookManager::removeBook(int BookId) {
+    // Retrieve book details before deletion (needed for Undo)
     Book b = getBookById(BookId);
-    if (b.Id == -1) return false;
+    if (b.Id == -1) return false; // Book not found
 
     string sql =
         "DELETE FROM books WHERE Id = " + to_string(BookId) + ";";
 
     if (db.execute(sql)) {
+        // Log the removal action with the deleted book's data
         Action act;
         act.type = REMOVE;
         act.bookData = b;
@@ -63,6 +73,7 @@ bool BookManager::removeBook(int BookId) {
     return false;
 }
 
+// Retrieves all books from the database and returns them as a vector.
 vector<Book> BookManager::getAllBooks() {
     vector<Book> booksList;
     sqlite3_stmt* stmt;
@@ -70,15 +81,18 @@ vector<Book> BookManager::getAllBooks() {
 
     sqlite3* rawDB = db.getDbHandle();
 
+    // Prepare the SQL statement
     if (sqlite3_prepare_v2(rawDB, query.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
         cerr << "[!] Error fetching books: " << sqlite3_errmsg(rawDB) << endl;
         return booksList;
     }
 
+    // Iterate through the result rows
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         Book b;
         b.Id = sqlite3_column_int(stmt, 0);
 
+        // Safely cast text columns (handle NULLs)
         const unsigned char* t = sqlite3_column_text(stmt, 1);
         b.Title = t ? string(reinterpret_cast<const char*>(t)) : "";
 
@@ -94,10 +108,12 @@ vector<Book> BookManager::getAllBooks() {
         booksList.push_back(b);
     }
 
+    // Finalize statement to release memory
     sqlite3_finalize(stmt);
     return booksList;
 }
 
+// Displays the list of books in a formatted table.
 void BookManager::printBooks(const vector<Book>& books) {
     if (books.empty()) {
         cout << "\n[i] No books found in the library.\n";
@@ -127,31 +143,35 @@ void BookManager::printBooks(const vector<Book>& books) {
     cout << " +-------+----------------------+----------------------+------+----------------------+" << endl;
 }
 
+// Sorts the vector of books based on publication year (Ascending).
 void BookManager::sortBooksByYear(vector<Book>& books) {
     sort(books.begin(), books.end(), [](const Book& a, const Book& b) {
         return a.Year < b.Year;
         });
 }
 
+// Sorts the vector of books based on ID (Ascending).
 void BookManager::sortBooksById(vector<Book>& books) {
     sort(books.begin(), books.end(), [](const Book& a, const Book& b) {
         return a.Id < b.Id;
         });
 }
 
+// Performs a linear search to find books matching a specific ID.
 vector<Book> BookManager::searchBooksById(const vector<Book>& books, int searchId) {
     vector<Book> results;
 
     for (const auto& item : books) {
         if (item.Id == searchId) {
             results.push_back(item);
-            break;
+            break; // IDs are unique, so we can stop after finding one
         }
     }
 
     return results;
 }
 
+// Checks if a specific ID already exists in the database.
 bool BookManager::idExists(int id) {
     sqlite3_stmt* stmt;
     string query = "SELECT COUNT(*) FROM books WHERE Id = " + to_string(id);
@@ -166,13 +186,15 @@ bool BookManager::idExists(int id) {
     return count > 0;
 }
 
+// Generates a random 5-digit ID and ensures it doesn't collide with existing IDs.
 int BookManager::generateUniqueId() {
-    static mt19937 gen(static_cast<unsigned int>(time(0)));
+    static mt19937 gen(static_cast<unsigned int>(time(0))); // Mersenne Twister RNG
     uniform_int_distribution<> dis(10000, 99999);
 
     int newId;
     bool exists = true;
 
+    // Loop until a unique ID is found
     while (exists) {
         newId = dis(gen);
         exists = idExists(newId);
@@ -181,10 +203,11 @@ int BookManager::generateUniqueId() {
     return newId;
 }
 
+// Fetches a single book's details from the database by ID.
 Book BookManager::getBookById(int id) {
     sqlite3_stmt* stmt;
     string query = "SELECT * FROM books WHERE Id = " + to_string(id);
-    Book b = { -1, "", "", 0, false, "" };
+    Book b = { -1, "", "", 0, false, "" }; // Default invalid book
 
     if (sqlite3_prepare_v2(db.getDbHandle(), query.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
         if (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -202,6 +225,7 @@ Book BookManager::getBookById(int id) {
 }
 
 // -------------------- Borrow Book --------------------
+// Handles borrowing logic. If the book is taken, adds the user to a waiting queue.
 bool BookManager::borrowBook(int bookId, const string& borrower) {
     Book b = getBookById(bookId);
     if (b.Id == -1) {
@@ -209,13 +233,15 @@ bool BookManager::borrowBook(int bookId, const string& borrower) {
         return false;
     }
 
+    // Check if the book is already borrowed
     if (b.isBorrowed) {
         cout << "\n[i] Book is currently unavailable.\n";
         cout << "    -> Added '" << borrower << "' to the waiting queue.\n";
-        requestQueue.enqueue(bookId, borrower);
+        requestQueue.enqueue(bookId, borrower); // Add to Queue
         return true;
     }
 
+    // Update database to mark as borrowed
     string sql = "UPDATE books SET isBorrowed = 1, Borrower = '" + borrower + "' WHERE Id = " + to_string(bookId);
     if (db.execute(sql)) {
         Action act;
@@ -232,6 +258,7 @@ bool BookManager::borrowBook(int bookId, const string& borrower) {
 }
 
 // -------------------- Return Book --------------------
+// Returns a book. If there is a queue, automatically assigns it to the next person.
 bool BookManager::returnBook(int bookId) {
     Book b = getBookById(bookId);
     if (!b.isBorrowed) {
@@ -244,13 +271,16 @@ bool BookManager::returnBook(int bookId) {
     act.targetId = bookId;
     act.oldBorrower = b.Borrower;
 
+    // Reset status in DB
     string sql = "UPDATE books SET isBorrowed = 0, Borrower = NULL WHERE Id = " + to_string(bookId);
     db.execute(sql);
 
+    // Check the waiting queue for this book
     string nextBorrower = requestQueue.dequeueRequestForBook(bookId);
 
     if (nextBorrower != "") {
         cout << "\n[!] QUEUE ALERT: Book automatically assigned to next user: " << nextBorrower << endl;
+        // Automatically borrow for the next user in line
         string sql2 = "UPDATE books SET isBorrowed = 1, Borrower = '" + nextBorrower + "' WHERE Id = " + to_string(bookId);
         db.execute(sql2);
     }
@@ -262,6 +292,7 @@ bool BookManager::returnBook(int bookId) {
     return true;
 }
 
+// Reverts the last operation performed (Add, Remove, Borrow, Return).
 void BookManager::undoLastAction() {
     Action lastAct;
     if (!historyStack.pop(lastAct)) {
@@ -274,12 +305,14 @@ void BookManager::undoLastAction() {
 
     switch (lastAct.type) {
     case ADD:
+        // Undo Add -> Delete the book
         cout << "(Removing Book ID: " << lastAct.targetId << ")\n";
         sql = "DELETE FROM books WHERE Id = " + to_string(lastAct.targetId);
         db.execute(sql);
         break;
 
     case REMOVE:
+        // Undo Remove -> Re-insert the book
         cout << "(Restoring Book: " << lastAct.bookData.Title << ")\n";
         sql = "INSERT INTO books (Id, Title, Author, Year, isBorrowed, Borrower) VALUES (" +
             to_string(lastAct.bookData.Id) + ", '" +
@@ -292,12 +325,14 @@ void BookManager::undoLastAction() {
         break;
 
     case BORROW:
+        // Undo Borrow -> Return the book
         cout << "(Canceling Borrow)\n";
         sql = "UPDATE books SET isBorrowed = 0, Borrower = NULL WHERE Id = " + to_string(lastAct.targetId);
         db.execute(sql);
         break;
 
     case RETURN:
+        // Undo Return -> Restore the previous borrower
         cout << "(Restoring loan to " << lastAct.oldBorrower << ")\n";
         sql = "UPDATE books SET isBorrowed = 1, Borrower = '" + lastAct.oldBorrower + "' WHERE Id = " + to_string(lastAct.targetId);
         db.execute(sql);
@@ -306,6 +341,7 @@ void BookManager::undoLastAction() {
     cout << "       -> Done.\n";
 }
 
+// Peeks at the top of the history stack to show the last executed action.
 void BookManager::showLastOperation() {
     Action lastAct;
 
