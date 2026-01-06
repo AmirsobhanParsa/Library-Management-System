@@ -2,6 +2,8 @@
 #include <iostream>
 #include <iomanip>
 #include "sqlite3.h"
+#include <random>
+#include <ctime>
 
 using namespace std;
 
@@ -12,14 +14,19 @@ BookManager::BookManager() {
 }
 
 bool BookManager::addBook(const Book& BookItem) {
+    int finalId = generateUniqueId();
     string sql =
         "INSERT INTO books (Id, Title, Author, Year, isBorrowed, Borrower) VALUES (" +
-        to_string(BookItem.Id) + ", '" +
+        to_string(finalId) + ", '" +
         BookItem.Title + "', '" +
         BookItem.Author + "', " +
         to_string(BookItem.Year) + ", 0, NULL);";
 
-    return db.execute(sql);
+    if (db.execute(sql)) {
+        cout << "Book added successfully with ID: " << finalId << endl;
+        return true;
+    }
+    return false;
 }
 
 bool BookManager::removeBook(int BookId) {
@@ -100,4 +107,33 @@ vector<Book> BookManager::searchBooksById(const vector<Book>& books, int searchI
     }
 
     return results;
+}
+
+bool BookManager::idExists(int id) {
+    sqlite3_stmt* stmt;
+    string query = "SELECT COUNT(*) FROM books WHERE Id = " + to_string(id);
+    int count = 0;
+
+    if (sqlite3_prepare_v2(db.getDbHandle(), query.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            count = sqlite3_column_int(stmt, 0);
+        }
+    }
+    sqlite3_finalize(stmt);
+    return count > 0;
+}
+
+int BookManager::generateUniqueId() {
+    static mt19937 gen(static_cast<unsigned int>(time(0)));
+    uniform_int_distribution<> dis(10000, 99999);
+
+    int newId;
+    bool exists = true;
+
+    while (exists) {
+        newId = dis(gen);
+        exists = idExists(newId);
+    }
+
+    return newId;
 }

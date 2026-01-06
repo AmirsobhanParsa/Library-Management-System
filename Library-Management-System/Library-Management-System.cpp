@@ -3,21 +3,15 @@
 
 int main() {
     BookManager manager;
-    vector<Book> allBooks = manager.getAllBooks();
 
-    int idToSearch;
-    cout << "Enter Book ID to search: ";
-    cin >> idToSearch;
+    Book newBook;
+    cout << "Enter Title: "; getline(cin, newBook.Title);
+    cout << "Enter Author: "; getline(cin, newBook.Author);
+    cout << "Enter Year: "; cin >> newBook.Year;
 
-    vector<Book> result = manager.searchBooksById(allBooks, idToSearch);
+    manager.addBook(newBook);
 
-    if (result.empty()) {
-        cout << "No book found with ID: " << idToSearch << endl;
-    }
-    else {
-        cout << "Book Found:" << endl;
-        manager.printBooks(result);
-    }
+    manager.printBooks(manager.getAllBooks());
 
     return 0;
 }
