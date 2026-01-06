@@ -4,12 +4,22 @@
 #include "sqlite3.h"
 #include <random>
 #include <ctime>
+#include <string>
 
 using namespace std;
 
+// Helper function to truncate strings for table display
+// (فقط برای نمایش بهتر جدول اضافه شده و تاثیری در دیتابیس ندارد)
+string truncate(string str, size_t width) {
+    if (str.length() > width) {
+        return str.substr(0, width - 3) + "...";
+    }
+    return str;
+}
+
 BookManager::BookManager() {
     if (!db.open()) {
-        cout << "Database connection failed\n";
+        cerr << "[!] Critical Error: Database connection failed.\n";
     }
 }
 
@@ -23,10 +33,12 @@ bool BookManager::addBook(const Book& BookItem) {
         to_string(BookItem.Year) + ", 0, NULL);";
 
     if (db.execute(sql)) {
-        cout << "Book added successfully with ID: " << finalId << endl;
+        cout << "\n[+] Book Added Successfully.\n";
+        cout << "    ID: " << finalId << " | Title: " << BookItem.Title << endl;
+
         Action act;
         act.type = ADD;
-        act.targetId = finalId; // آیدی که جنریت شده رو نگه می‌داریم
+        act.targetId = finalId;
         historyStack.push(act);
 
         return true;
@@ -35,16 +47,16 @@ bool BookManager::addBook(const Book& BookItem) {
 }
 
 bool BookManager::removeBook(int BookId) {
-    Book b = getBookById(BookId); // قبل از حذف، بک‌آپ می‌گیریم
+    Book b = getBookById(BookId);
     if (b.Id == -1) return false;
-    
+
     string sql =
         "DELETE FROM books WHERE Id = " + to_string(BookId) + ";";
 
     if (db.execute(sql)) {
         Action act;
         act.type = REMOVE;
-        act.bookData = b; // کل آبجکت کتاب را ذخیره می‌کنیم تا بتوانیم برش گردانیم
+        act.bookData = b;
         historyStack.push(act);
         return true;
     }
@@ -59,7 +71,7 @@ vector<Book> BookManager::getAllBooks() {
     sqlite3* rawDB = db.getDbHandle();
 
     if (sqlite3_prepare_v2(rawDB, query.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
-        cerr << "Error fetching books: " << sqlite3_errmsg(rawDB) << endl;
+        cerr << "[!] Error fetching books: " << sqlite3_errmsg(rawDB) << endl;
         return booksList;
     }
 
@@ -87,16 +99,32 @@ vector<Book> BookManager::getAllBooks() {
 }
 
 void BookManager::printBooks(const vector<Book>& books) {
-    cout << "-------------------------------------------------\n";
-    cout << left << setw(5) << "ID" << setw(20) << "Title" << setw(15) << "Author" << setw(6) << "Year" << endl;
-    cout << "-------------------------------------------------\n";
-    for (const auto& b : books) {
-        cout << left << setw(5) << b.Id
-            << setw(20) << b.Title
-            << setw(15) << b.Author
-            << setw(6) << b.Year << endl;
+    if (books.empty()) {
+        cout << "\n[i] No books found in the library.\n";
+        return;
     }
-    cout << "-------------------------------------------------\n";
+
+    // Table Header
+    cout << "\n";
+    cout << " +-------+----------------------+----------------------+------+----------------------+" << endl;
+    cout << " | " << left << setw(5) << "ID"
+        << " | " << setw(20) << "Title"
+        << " | " << setw(20) << "Author"
+        << " | " << setw(4) << "Year"
+        << " | " << setw(20) << "Status" << " |" << endl;
+    cout << " +-------+----------------------+----------------------+------+----------------------+" << endl;
+
+    // Table Body
+    for (const auto& b : books) {
+        string status = b.isBorrowed ? ("Borrowed: " + b.Borrower) : "Available";
+
+        cout << " | " << left << setw(5) << b.Id
+            << " | " << setw(20) << truncate(b.Title, 20)
+            << " | " << setw(20) << truncate(b.Author, 20)
+            << " | " << setw(4) << b.Year
+            << " | " << setw(20) << truncate(status, 20) << " |" << endl;
+    }
+    cout << " +-------+----------------------+----------------------+------+----------------------+" << endl;
 }
 
 void BookManager::sortBooksByYear(vector<Book>& books) {
@@ -176,10 +204,14 @@ Book BookManager::getBookById(int id) {
 // -------------------- Borrow Book --------------------
 bool BookManager::borrowBook(int bookId, const string& borrower) {
     Book b = getBookById(bookId);
-    if (b.Id == -1) { cout << "Book not found!\n"; return false; }
+    if (b.Id == -1) {
+        cout << "\n[!] Error: Book not found with ID " << bookId << ".\n";
+        return false;
+    }
 
     if (b.isBorrowed) {
-        cout << "Book is currently borrowed. Added " << borrower << " to the waiting queue.\n";
+        cout << "\n[i] Book is currently unavailable.\n";
+        cout << "    -> Added '" << borrower << "' to the waiting queue.\n";
         requestQueue.enqueue(bookId, borrower);
         return true;
     }
@@ -193,7 +225,7 @@ bool BookManager::borrowBook(int bookId, const string& borrower) {
         act.bookData.Borrower = borrower;
         historyStack.push(act);
 
-        cout << "Book borrowed successfully by " << borrower << ".\n";
+        cout << "\n[+] Success: Book borrowed by " << borrower << ".\n";
         return true;
     }
     return false;
@@ -202,7 +234,10 @@ bool BookManager::borrowBook(int bookId, const string& borrower) {
 // -------------------- Return Book --------------------
 bool BookManager::returnBook(int bookId) {
     Book b = getBookById(bookId);
-    if (!b.isBorrowed) { cout << "Book is not borrowed.\n"; return false; }
+    if (!b.isBorrowed) {
+        cout << "\n[!] This book is not currently borrowed.\n";
+        return false;
+    }
 
     Action act;
     act.type = RETURN;
@@ -215,12 +250,12 @@ bool BookManager::returnBook(int bookId) {
     string nextBorrower = requestQueue.dequeueRequestForBook(bookId);
 
     if (nextBorrower != "") {
-        cout << "Queue Alert: Book passed to next person in queue: " << nextBorrower << endl;
+        cout << "\n[!] QUEUE ALERT: Book automatically assigned to next user: " << nextBorrower << endl;
         string sql2 = "UPDATE books SET isBorrowed = 1, Borrower = '" + nextBorrower + "' WHERE Id = " + to_string(bookId);
         db.execute(sql2);
     }
     else {
-        cout << "Book returned successfully.\n";
+        cout << "\n[+] Book returned successfully. Now available.\n";
     }
 
     historyStack.push(act);
@@ -230,20 +265,22 @@ bool BookManager::returnBook(int bookId) {
 void BookManager::undoLastAction() {
     Action lastAct;
     if (!historyStack.pop(lastAct)) {
-        cout << "Nothing to undo (History is empty).\n";
+        cout << "\n[i] History is empty. Nothing to undo.\n";
         return;
     }
 
     string sql;
+    cout << "\n[UNDO] Reverting last action... ";
+
     switch (lastAct.type) {
     case ADD:
-        cout << "Undoing Add Book (ID: " << lastAct.targetId << ")...\n";
+        cout << "(Removing Book ID: " << lastAct.targetId << ")\n";
         sql = "DELETE FROM books WHERE Id = " + to_string(lastAct.targetId);
         db.execute(sql);
         break;
 
     case REMOVE:
-        cout << "Undoing Remove Book (Restoring: " << lastAct.bookData.Title << ")...\n";
+        cout << "(Restoring Book: " << lastAct.bookData.Title << ")\n";
         sql = "INSERT INTO books (Id, Title, Author, Year, isBorrowed, Borrower) VALUES (" +
             to_string(lastAct.bookData.Id) + ", '" +
             lastAct.bookData.Title + "', '" +
@@ -255,49 +292,49 @@ void BookManager::undoLastAction() {
         break;
 
     case BORROW:
-        cout << "Undoing Borrow...\n";
+        cout << "(Canceling Borrow)\n";
         sql = "UPDATE books SET isBorrowed = 0, Borrower = NULL WHERE Id = " + to_string(lastAct.targetId);
         db.execute(sql);
         break;
 
     case RETURN:
-        cout << "Undoing Return (Giving back to " << lastAct.oldBorrower << ")...\n";
+        cout << "(Restoring loan to " << lastAct.oldBorrower << ")\n";
         sql = "UPDATE books SET isBorrowed = 1, Borrower = '" + lastAct.oldBorrower + "' WHERE Id = " + to_string(lastAct.targetId);
         db.execute(sql);
         break;
     }
+    cout << "       -> Done.\n";
 }
 
 void BookManager::showLastOperation() {
     Action lastAct;
 
     if (!historyStack.peek(lastAct)) {
-        cout << "\n[Status]: No operations recorded in history.\n";
+        cout << "\n[Status] No operations recorded in history.\n";
         return;
     }
 
-    cout << "\n--- Last Operation Status ---\n";
+    cout << "\n================ LAST OPERATION ================\n";
     switch (lastAct.type) {
     case ADD:
-        cout << "Action: Added a book\n";
-        cout << "Details: ID " << lastAct.targetId << " was added to the library.\n";
+        cout << " Action : Added Book\n";
+        cout << " Details: ID [" << lastAct.targetId << "] entered the library.\n";
         break;
 
     case REMOVE:
-        cout << "Action: Removed a book\n";
-        cout << "Details: '" << lastAct.bookData.Title << "' (ID: " << lastAct.bookData.Id << ") was removed.\n";
+        cout << " Action : Removed Book\n";
+        cout << " Details: '" << lastAct.bookData.Title << "' (ID: " << lastAct.bookData.Id << ") deleted.\n";
         break;
 
     case BORROW:
-        cout << "Action: Borrowed a book\n";
-        cout << "Details: Book ID " << lastAct.targetId
-            << " was borrowed by " << lastAct.bookData.Borrower << ".\n";
+        cout << " Action : Borrow Book\n";
+        cout << " Details: ID [" << lastAct.targetId << "] borrowed by " << lastAct.bookData.Borrower << ".\n";
         break;
 
     case RETURN:
-        cout << "Action: Returned a book\n";
-        cout << "Details: Book ID " << lastAct.targetId << " was returned from " << lastAct.oldBorrower << ".\n";
+        cout << " Action : Return Book\n";
+        cout << " Details: ID [" << lastAct.targetId << "] returned from " << lastAct.oldBorrower << ".\n";
         break;
     }
-    cout << "-----------------------------\n";
+    cout << "================================================\n";
 }
